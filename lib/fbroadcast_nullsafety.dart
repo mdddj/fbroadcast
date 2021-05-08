@@ -176,7 +176,7 @@ class FBroadcast {
     Map<String, ResultCallback>? more,
   }) {
     if (_map == null) return this;
-    if (!_textIsEmpty(key) && receiver != null) {
+    if (!_textIsEmpty(key)) {
       _get(key)!.addListener(receiver);
       if (context != null && !_getReceivers(context)!.contains(receiver)) {
         _receiverCache[context]!.add(receiver);
@@ -222,7 +222,6 @@ class FBroadcast {
   /// [context] - context.
   void remove(ResultCallback receiver, {String? key, Object? context}) {
     if (_map == null) return;
-    if (receiver == null) return;
     if (!_textIsEmpty(key)) {
       _get(key)!.removeListener(receiver);
     } else {
@@ -267,35 +266,31 @@ class FBroadcast {
 
   void _unregister(Object context) {
     if (_map == null) return;
-    if (context != null) {
-      for (ResultCallback listener in _getReceivers(context) as Iterable<void Function(dynamic, void Function(dynamic)?)>) {
-        _map!.forEach((key, notifier) {
-          notifier.removeListener(listener);
-        });
-      }
-      _cleanMap();
-      _getReceivers(context)!.clear();
-      _receiverCache.remove(context);
+    for (ResultCallback listener in _getReceivers(context) as Iterable<void Function(dynamic, void Function(dynamic)?)>) {
+      _map!.forEach((key, notifier) {
+        notifier.removeListener(listener);
+      });
     }
+    _cleanMap();
+    _getReceivers(context)!.clear();
+    _receiverCache.remove(context);
   }
 
   /// 异步解注册，防止注册过多导致解注册时卡顿
   Future<bool> _unregisterAsync(Object context) async {
     if (_map == null) return false;
-    if (context != null) {
-      List notifys = _map!.values.toList();
-      for (ResultCallback listener in _getReceivers(context) as Iterable<void Function(dynamic, void Function(dynamic)?)>) {
-        for (_Notifier notify in notifys as Iterable<_Notifier<dynamic>>) {
-          await Future.delayed(Duration(milliseconds: 0));
-          if (notify._listeners != null) {
-            notify.removeListener(listener);
-          }
+    List notifys = _map!.values.toList();
+    for (ResultCallback listener in _getReceivers(context) as Iterable<void Function(dynamic, void Function(dynamic)?)>) {
+      for (_Notifier notify in notifys as Iterable<_Notifier<dynamic>>) {
+        await Future.delayed(Duration(milliseconds: 0));
+        if (notify._listeners != null) {
+          notify.removeListener(listener);
         }
       }
-      _cleanMap();
-      _getReceivers(context)!.clear();
-      _receiverCache.remove(context);
     }
+    _cleanMap();
+    _getReceivers(context)!.clear();
+    _receiverCache.remove(context);
     return true;
   }
 
@@ -306,7 +301,7 @@ class FBroadcast {
     if (_map == null) return;
     List<String?> needRemove = [];
     _map!.forEach((key, value) {
-      if (!value.hasListeners && !(value.persistence ?? false)) {
+      if (!value.hasListeners && !(value.persistence)) {
         needRemove.add(key);
       }
     });
@@ -376,7 +371,7 @@ class FBroadcast {
       int total2 = 0;
       Map reciverInfos2 = {};
       fBroadcast._stickyMap.forEach((key, value) {
-        int count = value.length ?? 0;
+        int count = value.length;
         total2 += count;
         reciverInfos2[key] = {
           "count": count,
@@ -486,7 +481,7 @@ _fdebugPrint(String msg, {String tag = "FBroadcast: "}) {
   if (FBroadcast.debug) {
     var dateTime = DateTime.now();
     String r =
-        "[$dateTime(${dateTime.millisecondsSinceEpoch})] ${tag ?? ''} $msg";
+        "[$dateTime(${dateTime.millisecondsSinceEpoch})] $tag $msg";
     if (r.length < 800) {
       print(r);
     } else {
