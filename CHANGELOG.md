@@ -1,3 +1,8 @@
+
+## 2.0.0
+
+ 添加空安全支持
+
 ## 1.1.1
 
 - Optimize the efficiency of removing broadcast system instances

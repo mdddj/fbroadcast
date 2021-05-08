@@ -1,4 +1,4 @@
-import 'package:fbroadcast/fbroadcast.dart';
+import 'package:fbroadcast/fbroadcast_nullsafety.dart';
 import 'package:flutter/material.dart';
 
 typedef StatefulCallback = void Function(StateSetter setState, Map data);
