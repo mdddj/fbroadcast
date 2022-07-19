@@ -1,6 +1,6 @@
 name: fbroadcast_nullsafety
 description: fbroadcast 飞猪 空安全版本
-version: 2.0.2
+version: 3.0.0
 homepage: https://github.com/mdddj/fbroadcast
 
 environment:

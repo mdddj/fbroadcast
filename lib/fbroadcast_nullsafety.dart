@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 
 
 /// [FBroadcast] 帮助开发者在应用内建立一套高效的广播系统，注册到系统中的接收者，将能接收到任意位置发送的对应类型的消息。
@@ -27,6 +26,9 @@ class FBroadcast {
 
   static FBroadcast _instance = FBroadcast._(type: "system");
 
+  /// 系统全局实例
+  static FBroadcast get systemInstance => instance();
+
   /// 获取 [FBroadcast] 系统实例，已进行注册/广播等操作
   ///
   /// Obtained [FBroadcast] system instance, registered/broadcast and other operations have been performed
@@ -41,13 +43,13 @@ class FBroadcast {
   ///           context can be any type of object instance.
   ///           A broadcast system can be released through [FBroadcast.dispose].
   ///           If [context] is null, global broadcast will be returned.
-  static FBroadcast? instance([dynamic context]) {
+  static FBroadcast instance([dynamic context]) {
     if (context == null) {
       return _instance;
     } else {
       if (_broadcastMap.containsKey(context) &&
           _broadcastMap[context] != null) {
-        return _broadcastMap[context];
+        return _broadcastMap[context]!;
       } else {
         FBroadcast newObj = FBroadcast._();
         newObj._key = context;
@@ -61,8 +63,8 @@ class FBroadcast {
   ///
   /// This function allows the receiver to get the data in the message
   static T? value<T>(String key) {
-    if (_textIsEmpty(key) || instance()!._map == null) return null;
-    var value = instance()!._map![key]?.value;
+    if (_textIsEmpty(key) || instance()._map == null) return null;
+    var value = instance()._map![key]?.value;
     if (value == null) return null;
     if (!(value is T)) {
       debugPrintStack(
