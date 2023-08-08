@@ -1,3 +1,8 @@
+## 3.0.1
+
+* remove `ResultCallback`
+* add `FResultCallback` class
+
 ## 3.0.0
 
 * 移除警告和新增系统全局的引用实例

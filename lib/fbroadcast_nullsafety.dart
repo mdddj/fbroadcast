@@ -11,17 +11,14 @@ import 'package:flutter/foundation.dart';
 class FBroadcast {
   static bool debug = false;
   static final Map<dynamic, FBroadcast> _broadcastMap = {};
-  Map<String?, _Notifier<dynamic>>? _map;
-  late Map<String, List<_Notifier>> _stickyMap;
-  late Map<Object, List<ResultCallback>> _receiverCache;
+  Map<String?, _Notifier<dynamic>>? _map = {};
+   Map<String, List<_Notifier<dynamic>>> _stickyMap = {};
+   Map<Object, List<FResultCallback>> _receiverCache = {};
   String _type = "extra";
   dynamic _key;
 
   FBroadcast._({String? type}) {
     _type = type ?? "extra";
-    _map = {};
-    _stickyMap = {};
-    _receiverCache = {};
   }
 
   static FBroadcast _instance = FBroadcast._(type: "system");
@@ -73,7 +70,7 @@ class FBroadcast {
     return value;
   }
 
-  _Notifier? _get(String? key) {
+  _Notifier<dynamic>? _get(String? key) {
     if (_map == null) return null;
     if (_textIsEmpty(key)) throw Exception("The key can't be null or empty!");
     if (!_map!.containsKey(key)) {
@@ -82,11 +79,11 @@ class FBroadcast {
     return _map![key];
   }
 
-  List? _getReceivers(Object context) {
+  List _getReceivers(Object context) {
     if (_receiverCache[context] == null) {
       _receiverCache[context] = [];
     }
-    return _receiverCache[context];
+    return _receiverCache[context] ?? [];
   }
 
   /// 广播一条 [key] 类型的消息。
@@ -104,14 +101,14 @@ class FBroadcast {
   /// [value] - The data carried in the message. Can be any type or null.
   /// [callback] - Able to receive the message returned by the receiver
   /// [persistence] - Whether or not to persist message types. Persistent messages can be retrieved at any time by [FBroadcast. Value] for the current message packet. By default, unpersisted message types are removed without a receiver, while persisted message types are not. Developers can use the [clear] function to remove persistent message types.
-  void broadcast(String key,
-      {dynamic value, ValueCallback? callback, bool persistence = false}) {
+  void broadcast<T>(String key,
+      {dynamic value, ValueChanged<T>? callback, bool persistence = false}) {
     if (_map == null) return;
     if (_textIsEmpty(key)) return;
     if (persistence && !_get(key)!.persistence) {
       _get(key)!.persistence = true;
     }
-    _get(key)!.callback = callback;
+    _get(key)!.callback = callback as ValueChanged<dynamic>;
     if (value == null || _get(key)!.value == value) {
       _get(key)!.notifyListeners();
     } else {
@@ -137,8 +134,8 @@ class FBroadcast {
   /// [value] - The data carried in the message. Can be any type or null.
   /// [callback] - Able to receive the message returned by the receiver
   /// [persistence] - Whether or not to persist message types. Persistent messages can be retrieved at any time by [FBroadcast. Value] for the current message packet. By default, unpersisted message types are removed without a receiver, while persisted message types are not. Developers can use the [clear] function to remove persistent message types.
-  void stickyBroadcast(String key,
-      {dynamic value, ValueCallback? callback, bool persistence = false}) {
+  void stickyBroadcast<T>(String key,
+      {dynamic value, ValueChanged<T>? callback, bool persistence = false}) {
     if (_map == null) return;
     if (_textIsEmpty(key)) return;
     if (persistence && !_get(key)!.persistence) {
@@ -150,7 +147,7 @@ class FBroadcast {
       if (_stickyMap[key] == null) {
         _stickyMap[key] = [];
       }
-      _stickyMap[key]!.add(_Notifier(value)..callback = callback);
+      _stickyMap[key]!.add(_Notifier(value)..callback = callback as ValueChanged<dynamic>);
     }
   }
 
@@ -171,17 +168,17 @@ class FBroadcast {
   /// [receiver] - receiver
   /// [context] - context. Not null, [receiver] will be registered in the environment.
   /// [more] - Make it easy to register multiple recipients at once
-  FBroadcast register(
+  FBroadcast register<T>(
     String key,
-    ResultCallback receiver, {
+      FResultCallback<T> receiver, {
     Object? context,
-    Map<String, ResultCallback>? more,
+    Map<String, FResultCallback<T>>? more,
   }) {
     if (_map == null) return this;
     if (!_textIsEmpty(key)) {
-      _get(key)!.addListener(receiver);
-      if (context != null && !_getReceivers(context)!.contains(receiver)) {
-        _receiverCache[context]!.add(receiver);
+      _get(key)!.addListener<T>(receiver);
+      if (context != null && !_getReceivers(context).contains(receiver)) {
+        _receiverCache[context]?.add(receiver);
       }
       if (_stickyMap[key] != null) {
         _stickyMap[key]!.forEach((element) {
@@ -193,10 +190,10 @@ class FBroadcast {
       }
     }
     if (more?.isNotEmpty ?? false) {
-      more!.forEach((key, value) {
-        _get(key)!.addListener(value);
-        if (context != null && !_getReceivers(context)!.contains(value)) {
-          _receiverCache[context]!.add(value);
+      more?.forEach((key, value) {
+        _get(key)!.addListener<T>(value);
+        if (context != null && !_getReceivers(context).contains(value)) {
+          _receiverCache[context]?.add(value);
         }
         if (_stickyMap[key] != null) {
           _stickyMap[key]!.forEach((element) {
@@ -222,7 +219,7 @@ class FBroadcast {
   /// [receiver] - receiver
   /// [key]-message type
   /// [context] - context.
-  void remove(ResultCallback receiver, {String? key, Object? context}) {
+  void remove(FResultCallback receiver, {String? key, Object? context}) {
     if (_map == null) return;
     if (!_textIsEmpty(key)) {
       _get(key)!.removeListener(receiver);
@@ -233,8 +230,8 @@ class FBroadcast {
     }
     _cleanMap();
     if (context != null) {
-      _getReceivers(context)!.remove(receiver);
-      if (_getReceivers(context)!.isEmpty) {
+      _getReceivers(context).remove(receiver);
+      if (_getReceivers(context).isEmpty) {
         _receiverCache.remove(context);
       }
     } else {
@@ -268,13 +265,13 @@ class FBroadcast {
 
   void _unregister(Object context) {
     if (_map == null) return;
-    for (ResultCallback listener in _getReceivers(context) as Iterable<void Function(dynamic, void Function(dynamic)?)>) {
+    for (FResultCallback listener in _getReceivers(context)) {
       _map!.forEach((key, notifier) {
         notifier.removeListener(listener);
       });
     }
     _cleanMap();
-    _getReceivers(context)!.clear();
+    _getReceivers(context).clear();
     _receiverCache.remove(context);
   }
 
@@ -282,16 +279,14 @@ class FBroadcast {
   Future<bool> _unregisterAsync(Object context) async {
     if (_map == null) return false;
     List notifys = _map!.values.toList();
-    for (ResultCallback listener in _getReceivers(context) as Iterable<void Function(dynamic, void Function(dynamic)?)>) {
+    for (FResultCallback listener in _getReceivers(context)) {
       for (_Notifier notify in notifys as Iterable<_Notifier<dynamic>>) {
         await Future.delayed(Duration(milliseconds: 0));
-        if (notify._listeners != null) {
-          notify.removeListener(listener);
-        }
+        notify.removeListener(listener);
       }
     }
     _cleanMap();
-    _getReceivers(context)!.clear();
+    _getReceivers(context).clear();
     _receiverCache.remove(context);
     return true;
   }
@@ -321,7 +316,7 @@ class FBroadcast {
     if (_map == null) return;
     _Notifier? remove = _map!.remove(key);
     if (remove?.hasListeners ?? false) {
-      remove!.listeners?.forEach((receiver) {
+      remove!.listeners.forEach((receiver) {
         _receiverCache.forEach((key, value) {
           value.remove(receiver);
         });
@@ -364,7 +359,7 @@ class FBroadcast {
       int total1 = 0;
       Map reciverInfos1 = {};
       fBroadcast._map!.forEach((key, value) {
-        int count = value._listeners?.length ?? 0;
+        int count = value._listeners.length;
         total1 += count;
         reciverInfos1[key] = {
           "count": count,
@@ -401,12 +396,23 @@ bool _textIsEmpty(String? text) {
   return text == null || text.length == 0;
 }
 
-typedef ValueCallback<T> = void Function(T value);
-typedef ResultCallback<T> = void Function(T? value, ValueCallback? callback);
+@Deprecated("Please use the `FResultCallback` class")
+typedef ResultCallback<T> = void Function(T? value, ValueChanged<T>? callback);
+
+class FResultCallback<T> {
+  final T? data;
+  final VoidCallback? callback;
+
+  FResultCallback({this.data, this.callback});
+
+  void run<T>(T? data,ValueChanged<T>? callback){
+
+  }
+}
 
 class _Notifier<T> {
   bool persistence;
-  ValueCallback? callback;
+  ValueChanged<T>? callback;
 
   T? get value => _value;
   T? _value;
@@ -417,7 +423,7 @@ class _Notifier<T> {
     notifyListeners();
   }
 
-  ObserverList<ResultCallback>? _listeners = ObserverList<ResultCallback>();
+  ObserverList<FResultCallback<dynamic>> _listeners = ObserverList<FResultCallback<dynamic>>();
 
   _Notifier(
     value, {
@@ -426,53 +432,36 @@ class _Notifier<T> {
     _value = value;
   }
 
-  bool _debugAssertNotDisposed() {
-    assert(() {
-      if (_listeners == null) {
-        throw FlutterError('A $runtimeType was used after being disposed.\n'
-            'Once you have called dispose() on a $runtimeType, it can no longer be used.');
-      }
-      return true;
-    }());
-    return true;
-  }
 
-  ObserverList<ResultCallback>? get listeners {
+  ObserverList<FResultCallback> get listeners {
     return _listeners;
   }
 
   bool get hasListeners {
-    assert(_debugAssertNotDisposed());
-    return _listeners!.isNotEmpty;
+    return _listeners.isNotEmpty;
   }
 
-  void addListener(ResultCallback listener) {
-    assert(_debugAssertNotDisposed());
-    _listeners!.add(listener);
+  void addListener<T>(FResultCallback<T> listener) {
+    _listeners.add(listener);
   }
 
-  void removeListener(ResultCallback listener) {
-    assert(_debugAssertNotDisposed());
-    _listeners!.remove(listener);
+  void removeListener(FResultCallback listener) {
+    _listeners.remove(listener);
   }
 
   void dispose() {
-    assert(_debugAssertNotDisposed());
-    _listeners = null;
+    _listeners.clear();
   }
 
   void notifyListeners() {
-    assert(_debugAssertNotDisposed());
-    if (_listeners != null) {
-      final List<ResultCallback> localListeners =
-          List<ResultCallback>.from(_listeners!);
-      for (final ResultCallback listener in localListeners) {
-        try {
-          if (_listeners!.contains(listener)) listener(value, callback);
-        } catch (exception) {}
-      }
-      callback = null;
+    final List<FResultCallback> localListeners =
+        List<FResultCallback>.from(_listeners);
+    for (final FResultCallback listener in localListeners) {
+      try {
+        if (_listeners.contains(listener)) listener.run<T>(value, callback);
+      } catch (exception) {}
     }
+    callback = null;
   }
 
   @override
