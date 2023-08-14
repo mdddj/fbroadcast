@@ -1,3 +1,17 @@
+## 3.0.7
+
+* bug fixed
+
+
+## 3.0.6
+
+* bug fixed
+
+## 3.0.5
+
+* bug fixed
+
+
 ## 3.0.4
 
 * bug fixed

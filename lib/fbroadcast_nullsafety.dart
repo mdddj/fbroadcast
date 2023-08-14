@@ -11,10 +11,10 @@ import 'package:flutter/material.dart';
 /// At the same time, [FBroadcast] also supports sticky broadcasting, which will help developers easily handle some complex communication scenarios.
 class FBroadcast {
   static bool debug = false;
-  static final Map<dynamic, FBroadcast> _broadcastMap = {};
-  Map<String, _Notifier<dynamic>> _map = {};
-   Map<String, List<_Notifier<dynamic>>> _stickyMap = {};
-   Map<BuildContext, List<FResultCallback>> _receiverCache = {};
+  static final  _broadcastMap = <dynamic, FBroadcast>{};
+  final _map = <String, _Notifier>{};
+   final _stickyMap = <String, List<_Notifier>>{};
+   final _receiverCache = <BuildContext, List<FResultCallback>>{};
   String _type = "extra";
   dynamic _key;
 
@@ -71,7 +71,7 @@ class FBroadcast {
     return value;
   }
 
-  _Notifier<dynamic>? _get(String key) {
+  _Notifier<dynamic>? _get<T>(String key) {
     if (!_map.containsKey(key)) {
       _map[key] = _Notifier(null);
     }
@@ -101,18 +101,18 @@ class FBroadcast {
   /// [callback] - Able to receive the message returned by the receiver
   /// [persistence] - Whether or not to persist message types. Persistent messages can be retrieved at any time by [FBroadcast. Value] for the current message packet. By default, unpersisted message types are removed without a receiver, while persisted message types are not. Developers can use the [clear] function to remove persistent message types.
   void broadcast<T>(String key,
-      {dynamic value, ValueChanged<T>? callback, bool persistence = false}) {
+      {dynamic value, ValueChanged<dynamic>? callback, bool persistence = false}) {
     if (_textIsEmpty(key)) return;
     if (persistence && !_get(key)!.persistence) {
-      _get(key)!.persistence = true;
+      _get<T>(key)!.persistence = true;
     }
     if(callback!=null){
-      _get(key)!.callback = callback as ValueChanged<dynamic>;
+      _get<T>(key)!.callback = callback ;
     }
     if (value == null || _get(key)!.value == value) {
-      _get(key)!.notifyListeners();
+      _get<T>(key)!.notifyListeners();
     } else {
-      _get(key)!.value = value;
+      _get<T>(key)!.value = value;
     }
   }
 
@@ -135,7 +135,7 @@ class FBroadcast {
   /// [callback] - Able to receive the message returned by the receiver
   /// [persistence] - Whether or not to persist message types. Persistent messages can be retrieved at any time by [FBroadcast. Value] for the current message packet. By default, unpersisted message types are removed without a receiver, while persisted message types are not. Developers can use the [clear] function to remove persistent message types.
   void stickyBroadcast<T>(String key,
-      {dynamic value, ValueChanged<T>? callback, bool persistence = false}) {
+      {T? value, ValueChanged<dynamic>? callback, bool persistence = false}) {
     if (persistence && !_get(key)!.persistence) {
       _get(key)!.persistence = true;
     }
@@ -146,7 +146,12 @@ class FBroadcast {
         _stickyMap[key] = [];
       }
       if(callback!=null){
-        _stickyMap[key]!.add(_Notifier(value)..callback = callback as ValueChanged<dynamic>);
+        if(value!=null){
+          final newN = _Notifier<T>(value);
+          newN.callback = callback;
+          _stickyMap[key]?.add(newN);
+        }
+
       }
     }
   }
@@ -190,7 +195,7 @@ class FBroadcast {
     }
     if (more?.isNotEmpty ?? false) {
       more?.forEach((key, value) {
-        _get(key)!.addListener<T>(value);
+        _get<T>(key)!.addListener<T>(value);
         if (context != null && !_getReceivers(context).contains(value)) {
           _receiverCache[context]?.add(value);
         }
@@ -398,7 +403,7 @@ abstract class FResultCallback<T> {
 
 class _Notifier<T> {
   bool persistence;
-  ValueChanged<T>? callback;
+  ValueChanged<dynamic>? callback;
 
   T? get value => _value;
   T? _value;
@@ -412,7 +417,7 @@ class _Notifier<T> {
   ObserverList<FResultCallback<dynamic>> _listeners = ObserverList<FResultCallback<dynamic>>();
 
   _Notifier(
-    value, {
+   T? value, {
     this.persistence = false,
   }) {
     _value = value;
